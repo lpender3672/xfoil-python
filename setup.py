@@ -20,6 +20,8 @@ import platform
 import re
 import subprocess
 import sys
+import shutil
+from glob import glob
 
 from setuptools import setup
 from setuptools.extension import Extension
@@ -29,6 +31,19 @@ __version__ = re.findall(
     r"""__version__ = ["']+([0-9\.]*)["']+""",
     open('xfoil/__init__.py').read(),
 )[0]
+
+# Check for DLL files in the project root directory or dlls subdirectory
+dll_files = []
+dll_dirs = ['dlls', '../dlls']
+for dll_dir in dll_dirs:
+    if os.path.exists(dll_dir):
+        dll_files.extend(glob(os.path.join(dll_dir, '*.dll')))
+
+# Copy DLL files to xfoil package directory to be included in the package
+if dll_files:
+    os.makedirs('xfoil/dlls', exist_ok=True)
+    for dll_file in dll_files:
+        shutil.copy2(dll_file, os.path.join('xfoil/dlls', os.path.basename(dll_file)))
 
 options = {k: 'OFF' for k in ['--opt', '--debug', '--cuda']}
 for flag in options.keys():
@@ -137,7 +152,7 @@ setup(
     author_email='contact@daniel-de-vries.com',
     license='GNU General Public License v3 or later (GPLv3+)',
     packages=['xfoil'],
-    # package_dir={'': 'src'},
+    package_data={'xfoil': ['dlls/*.dll']},
     ext_modules=[CMakeExtension('xfoil.xfoil')],
     cmdclass={'build_ext': CMakeBuild},
     install_requires=['numpy'],

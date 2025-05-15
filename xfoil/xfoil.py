@@ -19,6 +19,7 @@ import numpy as np
 import ctypes
 import os
 import glob
+import shutil
 
 from ctypes import c_bool, c_int, c_float, byref, POINTER, cdll
 from shutil import copy2
@@ -29,6 +30,13 @@ from .model import Airfoil
 here = os.path.abspath(os.path.dirname(__file__))
 lib_path = glob.glob(os.path.join(here, 'libxfoil.*'))[0]
 lib_ext = lib_path[lib_path.rfind('.'):]
+
+# Look for DLLs in multiple potential locations
+dll_search_paths = [
+    os.path.join(here, 'dlls'),                              # Package installed dlls
+    os.path.join(os.path.dirname(os.path.dirname(here)), 'dlls'),  # Project structure dlls
+    os.path.dirname(os.path.dirname(here)),                  # Project root directory
+]
 
 fptr = POINTER(c_float)
 bptr = POINTER(c_bool)
@@ -49,10 +57,39 @@ class XFoil(object):
 
     def __init__(self):
         super().__init__()
+        # Create temporary directory for DLLs
+        temp_dir = os.path.dirname(NamedTemporaryFile().name)
+        
+        # Create temporary file for libxfoil
         tmp = NamedTemporaryFile(mode='wb', delete=False, suffix=lib_ext)
         tmp.close()
         self._lib_path = tmp.name
         copy2(lib_path, self._lib_path)
+        
+        # Copy all dependency DLLs to the same temp directory
+        dll_files = []
+        for search_path in dll_search_paths:
+            if os.path.exists(search_path):
+                # If it's a directory, look for DLLs inside
+                if os.path.isdir(search_path):
+                    for dll_file in os.listdir(search_path):
+                        if dll_file.lower().endswith('.dll'):
+                            dll_files.append(os.path.join(search_path, dll_file))
+                # If it's a DLL file itself
+                elif search_path.lower().endswith('.dll'):
+                    dll_files.append(search_path)
+        
+        # Copy all found DLLs to temp directory
+        for dll_path in dll_files:
+            dll_name = os.path.basename(dll_path)
+            dll_dst = os.path.join(temp_dir, dll_name)
+            # Don't overwrite if already exists
+            if not os.path.exists(dll_dst):
+                try:
+                    shutil.copy2(dll_path, dll_dst)
+                except (IOError, OSError) as e:
+                    print(f"Warning: Could not copy DLL {dll_path}: {e}")
+        
         self._lib = cdll.LoadLibrary(self._lib_path)
         self._lib.init()
         self._airfoil = None
