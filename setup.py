@@ -89,14 +89,10 @@ class CMakeBuild(build_ext):
                     '-DCMAKE_RUNTIME_OUTPUT_DIRECTORY_{}={}'.format(cfg.upper(), extdir),
                 ]
                 # Assuming that Visual Studio and MinGW are supported compilers
-                if self.compiler.compiler_type == 'msvc':
-                    cmake_args += [
-                        '-DCMAKE_GENERATOR_PLATFORM=%s' % plat,
-                        ]
-                else:
-                    cmake_args += [
-                        '-G', 'MinGW Makefiles',
-                    ]
+
+            cmake_args += [
+                '-G', 'MinGW Makefiles',
+            ]
 
             cmake_args += cmake_cmd_args
 
@@ -122,7 +118,6 @@ setup(
     version=__version__,
     description='Stripped down version of XFOIL as compiled python module ',
     long_description=readme(),
-    long_description_content_type='text/markdown',
     classifiers=[
         'Development Status :: 3 - Alpha',
         'Intended Audience :: Science/Research',
